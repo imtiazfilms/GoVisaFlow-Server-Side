@@ -20,7 +20,6 @@ app.use(cors());
 
 async function run() {
   try {
-    // Connect to MongoDB
     await client.connect();
     console.log("Successfully connected to MongoDB!");
 
@@ -28,19 +27,17 @@ async function run() {
     const visaCollection = database.collection("visas");
     const applicationCollection = database.collection("applications");
 
-    // Add new visa
     app.post("/visas", async (req, res) => {
+      const visaData = req.body;
       try {
-        const visaData = req.body;
         const result = await visaCollection.insertOne(visaData);
-        res.status(201).send(result);
+        res.status(201).send({ message: "Visa added successfully", result });
       } catch (err) {
         console.error("Error adding visa:", err);
         res.status(500).send({ message: "Failed to add visa", error: err.message });
       }
     });
 
-    // Get all visas
     app.get("/visas", async (req, res) => {
       try {
         const visas = await visaCollection.find().toArray();
@@ -51,7 +48,22 @@ async function run() {
       }
     });
 
-    // Get visa details by ID
+    app.get("/addedVisas", async (req, res) => {
+        const { email } = req.query;
+        try {
+          const visas = await visaCollection.find({ email }).toArray();
+          console.log('Visas fetched from DB:', visas);
+          
+          if (visas.length === 0) {
+            return res.status(404).send({ message: "No visas found for this user" });
+          }
+          
+          res.send(visas);
+        } catch (err) {
+          console.error("Error fetching added visas:", err);
+          res.status(500).send({ message: "Failed to fetch added visas", error: err.message });
+        }
+      });
     app.get("/visas/:id", async (req, res) => {
       const { id } = req.params;
       try {
@@ -67,19 +79,17 @@ async function run() {
       }
     });
 
-    // Add a visa application
     app.post("/visaApplications", async (req, res) => {
       const applicationData = req.body;
       try {
         const result = await applicationCollection.insertOne(applicationData);
-        res.status(201).send(result);
+        res.status(201).send({ message: "Application submitted successfully", result });
       } catch (err) {
         console.error("Error adding application:", err);
         res.status(500).send({ message: "Failed to save application", error: err.message });
       }
     });
 
-    // Get user visa applications by email
     app.get("/myApplications", async (req, res) => {
       const { email } = req.query;
       try {
@@ -90,6 +100,51 @@ async function run() {
         res.status(500).send({ message: "Failed to fetch applications", error: err.message });
       }
     });
+
+    app.put('/visas/:id', async (req, res) => {
+        try {
+          const visaId = req.params.id;
+          const updatedVisa = req.body;
+          const updatedVisaData = await Visa.findByIdAndUpdate(visaId, updatedVisa, { new: true });
+          if (!updatedVisaData) {
+            return res.status(404).json({ message: "Visa not found." });
+          }
+          res.status(200).json(updatedVisaData);
+        } catch (error) {
+          console.error("Error updating visa:", error);
+          res.status(500).json({ message: "Failed to update visa." });
+        }
+      });
+
+      app.delete("/visas/:id", async (req, res) => {
+        const { id } = req.params;
+        try {
+          const result = await visaCollection.deleteOne({ _id: new ObjectId(id) });
+          if (result.deletedCount > 0) {
+            res.send({ message: "Visa deleted successfully" });
+          } else {
+            res.status(404).send({ message: "Visa not found" });
+          }
+        } catch (err) {
+          console.error("Error deleting visa:", err);
+          res.status(500).send({ message: "Failed to delete visa", error: err.message });
+        }
+      });
+
+    app.delete("/visaApplications/:id", async (req, res) => {
+      const { id } = req.params;
+      try {
+        const result = await applicationCollection.deleteOne({ _id: new ObjectId(id) });
+        if (result.deletedCount > 0) {
+          res.send({ message: "Application successfully deleted" });
+        } else {
+          res.status(404).send({ message: "Application not found" });
+        }
+      } catch (err) {
+        console.error("Error deleting application:", err);
+        res.status(500).send({ message: "Failed to delete application", error: err.message });
+      }
+    });
   } catch (err) {
     console.error("Failed to connect to MongoDB:", err.message);
   }
@@ -98,7 +153,7 @@ async function run() {
 run();
 
 app.get("/", (req, res) => {
-  res.send("hello");
+  res.send("Hello, Visa Flow is running!");
 });
 
 app.listen(port, () => {
