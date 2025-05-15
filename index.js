@@ -20,7 +20,6 @@ app.use(cors());
 
 async function run() {
   try {
-    await client.connect();
     console.log("Successfully connected to MongoDB!");
 
     const database = client.db("visaFlow");
@@ -49,21 +48,36 @@ async function run() {
     });
 
     app.get("/addedVisas", async (req, res) => {
-        const { email } = req.query;
-        try {
-          const visas = await visaCollection.find({ email }).toArray();
-          console.log('Visas fetched from DB:', visas);
-          
-          if (visas.length === 0) {
-            return res.status(404).send({ message: "No visas found for this user" });
-          }
-          
-          res.send(visas);
-        } catch (err) {
-          console.error("Error fetching added visas:", err);
-          res.status(500).send({ message: "Failed to fetch added visas", error: err.message });
+      const { email } = req.query;
+      try {
+        const visas = await visaCollection.find({ email }).toArray();
+        console.log('Visas fetched from DB:', visas);
+
+        if (visas.length === 0) {
+          return res.status(404).send({ message: "No visas found for this user" });
         }
-      });
+
+        res.send(visas);
+      } catch (err) {
+        console.error("Error fetching added visas:", err);
+        res.status(500).send({ message: "Failed to fetch added visas", error: err.message });
+      }
+    });
+
+    app.get("/addedVisasCount", async (req, res) => {
+      const { email } = req.query;
+      if (!email) {
+        return res.status(400).send({ message: "Email query param is required" });
+      }
+      try {
+        const count = await visaCollection.countDocuments({ email });
+        res.send({ count });
+      } catch (err) {
+        console.error("Error fetching visas count:", err);
+        res.status(500).send({ message: "Failed to fetch visas count", error: err.message });
+      }
+    });
+
     app.get("/visas/:id", async (req, res) => {
       const { id } = req.params;
       try {
@@ -101,35 +115,47 @@ async function run() {
       }
     });
 
-    app.put('/visas/:id', async (req, res) => {
-        try {
-          const visaId = req.params.id;
-          const updatedVisa = req.body;
-          const updatedVisaData = await Visa.findByIdAndUpdate(visaId, updatedVisa, { new: true });
-          if (!updatedVisaData) {
-            return res.status(404).json({ message: "Visa not found." });
-          }
-          res.status(200).json(updatedVisaData);
-        } catch (error) {
-          console.error("Error updating visa:", error);
-          res.status(500).json({ message: "Failed to update visa." });
-        }
-      });
+    app.get("/appliedVisasCount", async (req, res) => {
+      const { email } = req.query;
+      try {
+        const count = await applicationCollection.countDocuments({ email });
+        res.send({ count });
+      } catch (err) {
+        console.error("Error fetching applied visas count:", err);
+        res.status(500).send({ message: "Failed to fetch applied visas count", error: err.message });
+      }
+    });
 
-      app.delete("/visas/:id", async (req, res) => {
-        const { id } = req.params;
-        try {
-          const result = await visaCollection.deleteOne({ _id: new ObjectId(id) });
-          if (result.deletedCount > 0) {
-            res.send({ message: "Visa deleted successfully" });
-          } else {
-            res.status(404).send({ message: "Visa not found" });
-          }
-        } catch (err) {
-          console.error("Error deleting visa:", err);
-          res.status(500).send({ message: "Failed to delete visa", error: err.message });
+
+    app.put('/visas/:id', async (req, res) => {
+      try {
+        const visaId = req.params.id;
+        const updatedVisa = req.body;
+        const updatedVisaData = await Visa.findByIdAndUpdate(visaId, updatedVisa, { new: true });
+        if (!updatedVisaData) {
+          return res.status(404).json({ message: "Visa not found." });
         }
-      });
+        res.status(200).json(updatedVisaData);
+      } catch (error) {
+        console.error("Error updating visa:", error);
+        res.status(500).json({ message: "Failed to update visa." });
+      }
+    });
+
+    app.delete("/visas/:id", async (req, res) => {
+      const { id } = req.params;
+      try {
+        const result = await visaCollection.deleteOne({ _id: new ObjectId(id) });
+        if (result.deletedCount > 0) {
+          res.send({ message: "Visa deleted successfully" });
+        } else {
+          res.status(404).send({ message: "Visa not found" });
+        }
+      } catch (err) {
+        console.error("Error deleting visa:", err);
+        res.status(500).send({ message: "Failed to delete visa", error: err.message });
+      }
+    });
 
     app.delete("/visaApplications/:id", async (req, res) => {
       const { id } = req.params;
