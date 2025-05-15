@@ -1,2 +1,5 @@
-.vercel
+# example .gitignore entries
+node_modules/
+dist/
+build/
 .env
